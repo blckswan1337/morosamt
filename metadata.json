@@ -1,0 +1,30 @@
+{
+  "snapshot_date": "2026-08-14",
+  "target_ble_address": "EC:6E:86:06:32:29",
+  "packages": {
+    "EWHEELS": "com.HB.EWHEELS",
+    "XBOT": "com.mini.xbot",
+    "MiniRobot": "com.loby.balance.car.google"
+  },
+  "verified": {
+    "controller_branch": "ScooterIII/HB",
+    "wire_xor": "0x34",
+    "nus_service": "6E400001-B5A3-F393-E0A9-E50E24DCCA9E",
+    "nus_rx": "6E400002-B5A3-F393-E0A9-E50E24DCCA9E",
+    "nus_tx": "6E400003-B5A3-F393-E0A9-E50E24DCCA9E",
+    "f3_30_raw": 30000,
+    "f3_30_wire": "619E301437C7044174CA",
+    "ee": 225,
+    "profiles_raw": {
+      "EF": 463,
+      "F0": 515,
+      "F1": 386,
+      "F3": 30000
+    },
+    "caps_raw": {
+      "C2": 463,
+      "C4": 515,
+      "C6": 386
+    }
+  }
+}

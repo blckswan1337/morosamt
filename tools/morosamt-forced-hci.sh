@@ -4,7 +4,7 @@ set -euo pipefail
 # MOROSAMT ForcedUpgrade HCI capture
 #
 # Usage:
-#   bash morosamt-forced-hci.sh start
+#   MOROSAMT_MODEL=v2-pro-lr bash morosamt-forced-hci.sh start
 #   btfix
 #   # reconnect XBOT and run the SAME current Forced Firmware upgrade once
 #   bash morosamt-forced-hci.sh collect
@@ -14,6 +14,25 @@ set -euo pipefail
 # No firmware is modified by this script. It only controls Android HCI snooping.
 
 MODE="${1:-status}"
+MODEL_RAW="${MOROSAMT_MODEL:-v2-pro-lr}"
+
+case "${MODEL_RAW,,}" in
+    v2-pro-lr|v2prolr|pro-lr|prolr)
+        MODEL_ID="v2-pro-lr"
+        MODEL_NAME="E-Wheels E2S V2 Pro Long Range"
+        CONTROLLER_SKU="9444"
+        ;;
+    v2-lr|v2lr|lr)
+        MODEL_ID="v2-lr"
+        MODEL_NAME="E-Wheels E2S V2 Long Range"
+        CONTROLLER_SKU="9433"
+        ;;
+    *)
+        echo "STOPP: ukjent MOROSAMT_MODEL='$MODEL_RAW'"
+        exit 2
+        ;;
+esac
+
 OUT="/sdcard/Download/MOROSAMT_FORCED_HCI"
 STATE="$HOME/.morosamt-forced-hci.state"
 LOGDIR="/data/misc/bluetooth/logs"
@@ -42,6 +61,8 @@ start)
     } > "$STATE"
 
     echo "=== MOROSAMT FORCED UPDATE HCI: START ==="
+    echo "Model=$MODEL_NAME"
+    echo "Profile=$MODEL_ID controller_sku=$CONTROLLER_SKU"
     echo "Old persist.bluetooth.btsnooplogmode=${old_mode:-<empty>}"
     echo "Old persist.bluetooth.btsnoopdefaultmode=${old_default:-<empty>}"
     echo "Old global bluetooth_btsnoop_log_mode=${old_setting:-<empty>}"
@@ -90,6 +111,9 @@ collect)
         echo "persist.bluetooth.btsnooplogmode=$(root_getprop persist.bluetooth.btsnooplogmode)"
         echo "persist.bluetooth.btsnoopdefaultmode=$(root_getprop persist.bluetooth.btsnoopdefaultmode)"
         echo "bluetooth_btsnoop_log_mode=$(root_setting_get bluetooth_btsnoop_log_mode)"
+        echo "model_id=$MODEL_ID"
+        echo "model_name=$MODEL_NAME"
+        echo "controller_sku=$CONTROLLER_SKU"
         echo
         date
     } > "$OUT/state.txt"
@@ -214,6 +238,8 @@ restore)
 
 status)
     echo "=== MOROSAMT FORCED UPDATE HCI: STATUS ==="
+    echo "model=$MODEL_NAME"
+    echo "profile=$MODEL_ID controller_sku=$CONTROLLER_SKU"
     echo "persist.bluetooth.btsnooplogmode=$(root_getprop persist.bluetooth.btsnooplogmode)"
     echo "persist.bluetooth.btsnoopdefaultmode=$(root_getprop persist.bluetooth.btsnoopdefaultmode)"
     echo "bluetooth_btsnoop_log_mode=$(root_setting_get bluetooth_btsnoop_log_mode)"

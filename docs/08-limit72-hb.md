@@ -1,8 +1,8 @@
 # XBOT global speed-limit `0x72` HB experiment
 
-Status: **next live test, not yet controller-verified**.
+Status: **controller-tested and rejected.**
 
-## Why this path matters
+## Why this path mattered
 
 The XBOT ARM64 library contains an explicit `UserInterface::onClickLimit()` implementation. The Cocos assets bind limiter controls to that callback and contain the literal UI strings:
 
@@ -18,88 +18,74 @@ For nonzero, non-GoKart app types, the function:
 2. toggles bit 0,
 3. sends register `0x72` with value `1` or `0` using `Bluetooth::SendWriteCmd2`.
 
-This is distinct from the previously tested per-profile values `EF/F0/F1/F3` and their `C2/C4/C6` maxima. It is therefore a plausible global limiter-enable switch rather than another profile ceiling.
+The target's verified ScooterIII speed writes use `SendWriteCmd_HB` / address `0x20`, so an isolated patch changed only the two `0x72` calls in `onClickLimit()` from `SendWriteCmd2` to `SendWriteCmd_HB`.
 
 ## Captured target state
 
-The real ScooterIII/HB HCI capture contains this decoded block read:
+The controller reports:
 
 ```text
-55 AA 03 20 61 1A 34 2D FF
+0x1D = 0x07F9
+bit0 = 1
 ```
 
-The returned `0x1A...` block decodes register `0x1D` as:
+The first limiter toggle from this state should request limiter off.
+
+## Direct HB command
+
+The final test bypassed the UI entirely and sent the HB command directly through a root Android `BluetoothGatt` client.
+
+Decoded write:
 
 ```text
-0x1D = 2041 = 0x07F9
+55 AA 04 20 03 72 00 00 66 FF
 ```
 
-Bit 0 is `1`.
-
-That matches the state machine in `onClickLimit()`: the first limiter toggle from this state requests value `0`, i.e. limiter off.
-
-## Transport mismatch discovered
-
-The target's verified speed-profile traffic uses the ScooterIII/HB transport at address `0x20`, including `SendWriteCmd_HB` for `EF/F0/F1/F3`.
-
-The generic `onClickLimit()` implementation instead calls `SendWriteCmd2(0x72, value)`. `SendWriteCmd2` selects one of the generic addresses and does not select HB address `0x20` for this branch.
-
-This makes a model-branch mismatch plausible: the limiter UI exists, but its generic write path may not reach this particular ScooterIII/HB controller.
-
-## Isolated patch
-
-A new ARM64 split patch changes only the two calls inside `onClickLimit()`:
+Wire form after XOR `0x34`:
 
 ```text
-SendWriteCmd2(0x72, 1) -> SendWriteCmd_HB(0x72, 1)
-SendWriteCmd2(0x72, 0) -> SendWriteCmd_HB(0x72, 0)
+61 9E 30 14 37 46 34 34 52 CB
 ```
 
-No `PoJie` patch and no slider-max patch are included. This isolates the `0x72` hypothesis.
-
-Native patch offsets:
+Android returned:
 
 ```text
-ELF 0x5705B0  BL SendWriteCmd2 -> BL SendWriteCmd_HB
-ELF 0x5706FC  BL SendWriteCmd2 -> BL SendWriteCmd_HB
+GATT WRITE status=0
 ```
 
-Original ARM64 split SHA-256:
+The controller was then read again. It still returned:
 
 ```text
-1fe680898f86018c272775148b3a19267ef2371fb170691c38d5201e35bd3de5
+0x1D = 0x07F9
+bit0 = 1
 ```
 
-Patched split SHA-256:
+Final result:
 
 ```text
-a1ec34aacdfee31330a70807b5bff8784003a8bdecdabd10cf84e29bd1a04fa1
+LIMIT WRITE REJECTED
 ```
 
-## D7 finding
+## Conclusion
 
-The captured controller map also contains:
+The `0x72` hypothesis is now closed for this controller/configuration. Changing the transport from generic `SendWriteCmd2` to `SendWriteCmd_HB` does not disable the controller-side limiter state.
+
+This reinforces the evidence that the protected speed behavior sits below ordinary writable HB registers.
+
+## D7 finding remains valid
+
+The captured controller map contains:
 
 ```text
 D7 = 30000
 ```
 
-`RefreshSetting4()` and `RefrushSetMode()` read `D7` to set the maximum percentage of the `F3` speed slider. With `D7=30000`, the UI maximum resolves to 30 km/h. This is consistent with the already verified fact that `F3=30000` is accepted by the controller.
+`RefreshSetting4()` and `RefrushSetMode()` use `D7` to set the maximum of the `F3` speed slider. This is consistent with the independently verified fact that `F3=30000` is accepted and reads back as 30 km/h.
 
-`D7` therefore looks like the F3/UI maximum, not the missing mechanism that raises the `EF/F0/F1` ceilings.
+`D7` is therefore useful evidence for the F3 branch, but it is not the missing mechanism for raising the protected EF/F0/F1 ceilings.
 
-## Verification criterion for `0x72`
+## Next layer
 
-UI state is not accepted as proof.
+The primary path is now XBOT/Lebitec ForcedUpgrade. The HTTP/file-selection side of that path has subsequently been verified, including a controlled local `Config.xml` and successful XBOT retrieval of `DK01.bin`.
 
-After one LIMIT OFF toggle, the HCI capture must show:
-
-1. an outgoing HB write to register `0x72`, value `0`,
-2. a subsequent controller read of the `0x1A` block,
-3. controller register `0x1D` bit 0 changing from `1` to `0`.
-
-Only after that state transition is proven should actual top-speed behavior be tested.
-
-## If this fails
-
-If `0x72` over HB is ignored and `0x1D` remains odd, the next primary path remains the vendor forced-upgrade/config/firmware layer. A full from-scratch controller firmware is still lower priority than recovering the compatible unrestricted OEM image or its configuration delta.
+See `docs/09-forced-update-dk.md`.

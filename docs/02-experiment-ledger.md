@@ -41,9 +41,7 @@ Status: **partially successful, hypothesis incomplete**
 
 Attempted to set EF/F0/F1/F3 to 30 km/h equivalents.
 
-Target scaled raw for EF/F0/F1:
-
-`772`
+Target scaled raw for EF/F0/F1: `772`.
 
 Result:
 
@@ -57,15 +55,11 @@ Conclusion: only F3 changed. EF/F0/F1 writes were ignored.
 
 Status: **rejected as sufficient explanation**
 
-Original mode:
-
-`7E=0`
+Original mode: `7E=0`.
 
 The script explicitly selected mode 0 and wrote `F0=772`.
 
-Readback:
-
-`F0=515`
+Readback: `F0=515`.
 
 Conclusion: selecting the corresponding mode was not enough.
 
@@ -79,35 +73,17 @@ Observed:
 C2=463 C3=154 C4=515 C5=154 C6=386 C7=154
 ```
 
-Attempted:
+Attempted: `C2=772`.
 
-`C2=772`
+Android/GATT: `status=0`.
 
-Android/GATT:
-
-`status=0`
-
-Controller readback:
-
-`C2=463`
+Controller readback: `C2=463`.
 
 Conclusion: C2/C4/C6 are not ordinary writable user parameters through the same command path.
 
-## Experiment F: EE wheel-factor write probe
+## Experiment F: XBOT PoJie native patch
 
-Status: **not executed**
-
-Reason: Android PackageManager failed while installing/running the helper:
-
-```text
-cmd: Failure calling service package: Failed transaction (2147483646)
-```
-
-No BLE EE write was sent. EE writability remains unknown.
-
-## Experiment G: XBOT PoJie native patch
-
-Status: **no-go so far / not a verified bypass**
+Status: **no-go / not a verified bypass**
 
 Static findings:
 
@@ -115,30 +91,153 @@ Static findings:
 - forced-upgrade `Config.xml` parser reads it as an integer.
 - value is stored at `UserInterface+0x1BAC`.
 - reset/init code clears the same field.
-- no direct read/consumer of `+0x1BAC` has yet been found in the analyzed ARM64 binary.
+- no direct read/consumer of `+0x1BAC` has been proven in the analyzed ARM64 binary.
 
-Patch hypothesis:
+Patch hypothesis forced `PoJie=1` and raised the app-visible maximum to 30 km/h.
 
-1. force `PoJie=1` after reset,
-2. force parsed/missing PoJie to 1,
-3. force XBOT's app-visible speed maximum to 30 km/h.
+Practical result: no demonstrated controller-side bypass.
 
-Deployment used a root bind-overlay idea for the already-installed ARM64 split to avoid relying on the unstable PackageManager.
+## Experiment G: direct `0x72` limiter-off over HB
 
-Practical result reported by user: **no-go so far**.
+Status: **rejected by controller readback**
 
-Interpretation: `PoJie` may be legacy, controller-family-specific, consumed indirectly, or unrelated to the speed-limit enforcement. It must not currently be documented as a proven unlock switch.
+Initial state:
 
-## Experiment H: forced-upgrade path as privileged layer
+```text
+0x1D = 0x07F9
+bit0 = 1
+```
 
-Status: **strong lead, not yet tested on this target**
+Decoded write:
 
-XBOT native code includes a complete firmware-update state machine and forced-upgrade path. Independent public reporting describes XBOT ForcedUpgrade being used to access/update Lebitec scooter controller firmware and redirecting a forced-upgrade download to another Lebitec DK firmware image.
+```text
+55 AA 04 20 03 72 00 00 66 FF
+```
 
-Interpretation: the firmware/update path is a better candidate for bypassing immutable C2/C4/C6 limits than further normal register writes.
+Android/GATT returned status 0.
+
+Verification readback:
+
+```text
+0x1D = 0x07F9
+bit0 = 1
+```
+
+Conclusion: using the correct HB transport does not make `0x72=0` disable the limiter on this target.
+
+## Experiment H: direct EE wheel-factor write
+
+Status: **rejected by controller readback**
+
+Initial block:
+
+```text
+EE=225 EF=463 F0=515 F1=386 F2=0 F3=30000
+```
+
+Test write: `EE=226`.
+
+Android/GATT returned status 0.
+
+Verification readback:
+
+```text
+EE=225 EF=463 F0=515 F1=386 F2=0 F3=30000
+```
+
+Conclusion: EE is not writable through the ordinary HB path for this target. The earlier PackageManager-blocked test is superseded by this direct root `app_process` result.
+
+## Experiment I: root `app_process` BluetoothGatt client
+
+Status: **verified**
+
+A naked root `app_process` initially returned a null `BluetoothAdapter` or timed out.
+
+The working bootstrap:
+
+1. initializes `BluetoothFrameworkInitializer` / `BluetoothServiceManager`,
+2. runs as Android system UID 1000,
+3. obtains attribution `uid=1000 package=android`,
+4. connects through `BluetoothGatt`, discovers NUS, enables CCCD, and exchanges controller frames.
+
+This is now the preferred direct BLE probe mechanism when APK installation is undesirable.
+
+## Experiment J: recover target E-WHEELS DK image
+
+Status: **verified**
+
+Target identity:
+
+```text
+DK_MODEL = 84a8
+DK_ID    = 061007f9
+```
+
+Recovered current vendor image:
+
+```text
+DK061007f9.bin
+28444 bytes
+sha256 856c19b176f9e8d1f73f627e731e4a991282c9fba2a136b14651831b981bff62
+```
+
+Recovered nearby image:
+
+```text
+DK061007a7.bin
+28380 bytes
+sha256 919f76d8447044d58945dc491eeed324e6154f55c9cee7edce2d256410458595
+```
+
+The pair is high-entropy and differs extensively; it is not a simple plaintext speed-table diff.
+
+## Experiment K: local ForcedUpgrade probe
+
+Status: **verified**
+
+Only XBOT's ForcedUpgrade URL strings were redirected to a local Termux HTTP server.
+
+Test code: `MORO42001`.
+
+Probe mode served `Config.xml` but deliberately withheld binaries.
+
+Observed requests:
+
+```text
+GET /f/MORO42001/Config.xml -> 200
+GET /f/MORO42001/DK01.bin   -> intentional 404
+```
+
+Conclusion: the real XBOT ForcedUpgrade path follows the controlled local source, and this controller/update branch selects `DK01.bin`.
+
+## Experiment L: current vendor DK delivered through ForcedUpgrade
+
+Status: **HTTP/file-selection layer verified; controller flash completion not yet proven**
+
+The local server exposed the exact current `DK061007f9.bin` as `DK01.bin`.
+
+Observed:
+
+```text
+GET /f/MORO42001/Config.xml -> 200
+GET /f/MORO42001/DK01.bin   -> 200
+```
+
+Served payload:
+
+```text
+28444 bytes
+sha256 856c19b176f9e8d1f73f627e731e4a991282c9fba2a136b14651831b981bff62
+```
+
+Conclusion: XBOT can be made to fetch a controlled DK payload through its genuine ForcedUpgrade code path.
+
+What remains unknown is whether the controller entered update mode and completed the DK chunk/ACK/finish sequence.
 
 ## Current working hypothesis
 
-The consumer parameter path modifies EF/F0/F1 only inside controller-provided maxima. F3 is different and already accepts 30 km/h. The unresolved profile limits likely live in firmware/configuration below the normal parameter layer.
+The ordinary consumer parameter path is constrained by controller-side policy. `C2/C4/C6`, `0x72`, and `EE` are all rejected on controller readback, while F3 remains independently writable to 30 km/h.
 
-The preferred direction is therefore to recover and modify the smallest existing Lebitec firmware/config artifact necessary, rather than writing a completely new motor-controller firmware from scratch.
+The strongest current path is therefore the privileged XBOT/Lebitec ForcedUpgrade layer.
+
+Next experiment: capture full HCI/ACL during one current-image ForcedUpgrade cycle and reconstruct the update command/ACK state machine before testing an alternate or modified DK image.

@@ -1,8 +1,8 @@
 # morosamt
 
-Reverse-engineering notebook for MOROBOT / XBOT / E-WHEELS BLE speed-control research.
+Reverse-engineering notebook for MOROBOT / XBOT / E-WHEELS BLE speed-control and firmware-update research.
 
-Snapshot status: 2026-08-14, updated through the first XBOT native PoJie patch test.
+Snapshot status: **2026-08-15**, updated through verified XBOT ForcedUpgrade HTTP/file routing with the target's current DK image.
 
 ## What is verified
 
@@ -14,27 +14,26 @@ Snapshot status: 2026-08-14, updated through the first XBOT native PoJie patch t
 - BLE payload transform: bytewise XOR `0x34`
 - `F3` uses direct uint16 little-endian encoding in units of `0.001 km/h`
 - `F3=30000` was written and independently read back as `30.0 km/h`
-- Profile values observed in the `EE..F3` block:
+- Profile block observed:
   - `EE=225`
   - `EF=463` ~= 18 km/h
   - `F0=515` ~= 20 km/h
   - `F1=386` ~= 15 km/h
-  - `F3=30000` = 30 km/h after the verified write
-- E-WHEELS/XBOT native scaling for EF/F0/F1 is approximately `km/h = raw * EE / 5794.652832`
-- Numeric mode/slot mapping from native code:
+  - `F2=0`
+  - `F3=30000`
+- E-WHEELS/XBOT scaling for EF/F0/F1 is approximately `km/h = raw * EE / 5794.652832`
+- Numeric mode/slot mapping:
   - `7E=0 -> F0`
   - `7E=1 -> EF`
   - `7E=2 -> F1`
   - `7E=3 -> F3`
-- Per-profile maxima are read from:
-  - `C2` for the EF branch
-  - `C4` for the F0 branch
-  - `C6` for the F1 branch
-- Controller values were `C2=463`, `C4=515`, `C6=386`.
-- Direct attempts to raise profile slots above those maxima were ignored by the controller.
-- Direct attempt to raise `C2` to the 30 km/h-equivalent raw value was accepted by Android/GATT but rejected on controller readback.
+- Per-profile maxima are consumed from `C2`, `C4`, and `C6`.
+- Direct attempts to raise profile slots or `C2` above their controller maxima are rejected/ignored on readback.
+- Direct HB `0x72=0` limiter-off is rejected: `0x1D` remains `0x07F9`, bit 0 set.
+- Direct `EE=226` wheel-factor test is rejected: controller reads back `EE=225`.
+- A root `app_process` BluetoothGatt client works without APK installation when Android Bluetooth framework bootstrap is recreated and the process runs as system UID 1000.
 
-## XBOT native analysis update
+## XBOT / firmware update findings
 
 The complete installed XBOT split set was recovered, including `split_config.arm64_v8a.apk` and `lib/arm64-v8a/libcpp_empty_test.so`.
 
@@ -42,35 +41,86 @@ Static analysis found:
 
 - a real firmware-update engine in `Bluetooth::UpdateApp()` / `Bluetooth::UpdataWrite()`
 - forced-upgrade paths under `ForcedUpgrade/Scooter/...`
-- normal update paths under `ScooterUpdata/...`
+- normal E-WHEELS / Lebitec update paths
 - firmware families including `DK`, `XK`, and `BP`
-- a `PoJie` integer parsed from the forced-upgrade `Config.xml`
+- a `PoJie` integer parsed from forced-upgrade `Config.xml`
 
-`PoJie` is stored in `UserInterface` at offset `0x1BAC`. However, in the analyzed ARM64 build the field has so far only been found initialized/reset and written by the XML parser. No direct consumer/read of the field has yet been proven. This makes `PoJie` an interesting lead, but not a verified speed-unlock switch.
+`PoJie` remains an unverified lead. A native patch forcing `PoJie=1` did not produce a demonstrated controller-side speed bypass.
 
-A native XBOT patch was produced that forced `PoJie=1` and patched the app-visible maximum to 30 km/h. Initial practical result: **no-go so far**. The patch did not yet produce a demonstrated controller-side bypass of the `C2/C4/C6` limits.
+## Target DK identity
 
-## Strong external clue
+The target resolves to:
 
-Independent public reverse-engineering reports describe using Lebitec/XBOT's **ForcedUpgrade** path to unlock an MCU for firmware access and to redirect an XBOT forced-upgrade download to another Lebitec firmware image. This strongly supports the firmware/update path as a real privileged layer below ordinary parameter writes.
+```text
+DK_MODEL = 0x84A8
+DK_ID    = 0x061007F9
+```
 
-It does **not** prove that a completely new firmware is necessary for this controller. The current evidence instead favors finding or adapting the correct existing Lebitec firmware/config/update path before attempting a from-scratch firmware rewrite.
+The matching live E-WHEELS vendor image was recovered:
+
+```text
+DK061007f9.bin
+size   = 28444 bytes
+sha256 = 856c19b176f9e8d1f73f627e731e4a991282c9fba2a136b14651831b981bff62
+```
+
+A nearby vendor image was also recovered:
+
+```text
+DK061007a7.bin
+size   = 28380 bytes
+sha256 = 919f76d8447044d58945dc491eeed324e6154f55c9cee7edce2d256410458595
+```
+
+The images are high-entropy and not a simple near-identical plaintext pair, so blind binary patching is not currently justified.
+
+## ForcedUpgrade breakthrough
+
+An isolated XBOT native patch redirects only the ForcedUpgrade URLs to a local Termux HTTP server.
+
+Test code:
+
+```text
+MORO42001
+```
+
+Probe mode deliberately withheld firmware binaries. XBOT successfully fetched local `Config.xml` and then requested:
+
+```text
+/f/MORO42001/DK01.bin
+```
+
+This proved that the real XBOT ForcedUpgrade path was following the controlled local source and that this branch selects `DK01.bin`.
+
+The server was then switched to current-image mode. XBOT successfully downloaded the exact current vendor image as `DK01.bin`:
+
+```text
+HTTP 200
+28444 bytes
+sha256 856c19b176f9e8d1f73f627e731e4a991282c9fba2a136b14651831b981bff62
+```
+
+This verifies the **complete HTTP/file-selection side of ForcedUpgrade**.
+
+It does not yet prove that the controller completed the firmware flash. The next proof target is the BLE/HCI update transaction and ACK state machine.
+
+See `docs/09-forced-update-dk.md`.
 
 ## Current conclusion
 
-A full custom firmware is **not the preferred next step**.
+The normal writable HB register layer is no longer the primary path for unlocking the protected profile ceilings. `C2/C4/C6`, `0x72`, and `EE` have all failed controller readback tests, while the separate ForcedUpgrade path is now experimentally reachable and controllable.
 
-30 km/h is already controller-verified through `F3`. The unresolved problem is raising the other profile ceilings. The highest-value next work is:
+Highest-value next work:
 
-1. identify the exact controller/update family (`DK`, `XK`, `BP`, etc.),
-2. recover the matching forced-upgrade `Config.xml` / firmware image,
-3. map the cap values inside that configuration/firmware,
-4. determine whether an existing unlocked Lebitec image or parameter blob can provide 30 km/h,
-5. only consider a custom firmware rewrite if the controller image proves to contain hardcoded limits with no usable existing update/config path.
+1. capture full HCI/ACL during one current-image ForcedUpgrade cycle,
+2. reconstruct the controller update-mode command and ACK progression,
+3. prove the current DK image completes controller-side update mode,
+4. then test only a compatible alternate vendor DK or minimally modified image,
+5. retain a from-scratch controller firmware as a fallback rather than the immediate next step.
 
 ## Evidence rule
 
-`GATT WRITE status=0` is never treated as proof that a controller setting changed. Success requires controller readback or equivalent independent verification.
+`GATT WRITE status=0` is never treated as proof that a controller setting changed. HTTP `200` is never treated as proof that firmware was flashed. Controller readback or update ACK progression is required.
 
 ## Layout
 

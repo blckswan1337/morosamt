@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1600" viewBox="0 0 2400 1600">
+<defs>
+  <style>
+    .bg{fill:#0b0f12}.panel{fill:#11181d;stroke:#2c5878;stroke-width:3}.title{font:700 54px Arial,sans-serif;fill:#f7c90d}.h1{font:700 34px Arial,sans-serif;fill:#fff}.h2{font:700 27px Arial,sans-serif;fill:#fff}.txt{font:22px Arial,sans-serif;fill:#dce7ec}.mono{font:21px monospace;fill:#dce7ec}.blue{fill:#0d4d87}.green{fill:#184d28}.amber{fill:#5a4300}.red{fill:#7e1717}.line{stroke:#36a2ff;stroke-width:7;fill:none;marker-end:url(#arrow)}.ok{fill:#61d46e}.bad{fill:#ff5353}.muted{fill:#9fb0ba}.small{font:19px Arial,sans-serif;fill:#cbd6dc}
+  </style>
+  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#36a2ff"/></marker>
+</defs>
+<rect class="bg" width="2400" height="1600"/>
+<text x="70" y="88" class="title">MOROSAMT</text><text x="410" y="88" class="h1">SLIK FUNGERER HELE SULAMITTEN</text>
+<text x="72" y="130" class="txt">Fra scooter til firmware via BLE, XBOT og lokal server</text>
+
+<!-- 1 -->
+<rect x="40" y="170" rx="22" width="1150" height="420" class="panel"/>
+<rect x="58" y="188" rx="12" width="410" height="54" class="blue"/><text x="80" y="226" class="h2">1  OVERSIKT – HELE KJEDEN</text>
+<text x="95" y="300" class="h2">SCOOTER</text><text x="330" y="300" class="h2">BLE / NUS</text><text x="655" y="300" class="h2">ANDROID / XBOT</text><text x="945" y="300" class="h2">LOKAL SERVER</text>
+<rect x="88" y="340" rx="18" width="150" height="150" class="green"/><text x="112" y="410" class="h2">HB</text><text x="107" y="445" class="small">controller</text>
+<rect x="322" y="328" rx="16" width="245" height="185" class="blue"/><text x="352" y="370" class="h2">NUS</text><text x="345" y="405" class="mono">6E400001-...</text><text x="345" y="438" class="mono">RX 6E400002-...</text><text x="345" y="471" class="mono">TX 6E400003-...</text><text x="345" y="503" class="mono">XOR 0x34</text>
+<rect x="670" y="340" rx="18" width="175" height="150" class="blue"/><text x="712" y="402" class="h2">XBOT</text><text x="690" y="440" class="small">Forced upgrade</text>
+<rect x="930" y="328" rx="18" width="210" height="185" class="panel"/><text x="957" y="370" class="mono">127.0.0.1:8765</text><text x="960" y="408" class="mono">/f/MORO42001/</text><text x="980" y="445" class="mono">Config.xml</text><text x="980" y="478" class="mono">DK01.bin</text>
+<path d="M238 415 H322" class="line"/><path d="M567 415 H670" class="line"/><path d="M845 415 H930" class="line"/>
+<text x="82" y="552" class="small">Controller → BLE → XBOT → lokal HTTP → firmwarefil</text>
+
+<!-- 2 -->
+<rect x="1210" y="170" rx="22" width="1150" height="420" class="panel"/>
+<rect x="1228" y="188" rx="12" width="500" height="54" class="blue"/><text x="1250" y="226" class="h2">2  BLE – TRANSPORT OG PROTOKOLL</text>
+<text x="1250" y="295" class="h2">Nordic UART Service</text>
+<rect x="1265" y="335" rx="14" width="220" height="90" class="blue"/><text x="1325" y="390" class="h2">WRITE / RX</text>
+<rect x="1265" y="455" rx="14" width="220" height="90" class="green"/><text x="1305" y="510" class="h2">NOTIFY / TX</text>
+<rect x="1615" y="330" rx="16" width="260" height="220" class="panel"/><text x="1655" y="380" class="h2">XOR 0x34</text><text x="1650" y="422" class="txt">Hver byte XOR-es</text><text x="1650" y="455" class="txt">i begge retninger.</text><text x="1650" y="500" class="mono">12 34 56</text><text x="1650" y="530" class="mono">26 00 62</text>
+<rect x="1940" y="325" rx="18" width="365" height="230" class="amber"/><text x="1970" y="375" class="h2">VIKTIG</text><text x="1970" y="420" class="txt">GATT status=0 betyr at</text><text x="1970" y="455" class="txt">Android godtok write.</text><text x="1970" y="490" class="txt">Det beviser ikke at</text><text x="1970" y="525" class="txt">controlleren endret noe.</text>
+<path d="M1485 380 H1580" class="line"/><path d="M1580 500 H1485" class="line"/>
+
+<!-- 3 -->
+<rect x="40" y="620" rx="22" width="1150" height="400" class="panel"/>
+<rect x="58" y="638" rx="12" width="490" height="54" class="blue"/><text x="80" y="676" class="h2">3  REGISTER – SCOOTERIII / HB</text>
+<text x="82" y="740" class="h2">Register</text><text x="290" y="740" class="h2">Funksjon</text><text x="665" y="740" class="h2">Resultat</text>
+<line x1="70" y1="755" x2="1135" y2="755" stroke="#69808d" stroke-width="2"/>
+<text x="90" y="808" class="mono">F3</text><text x="290" y="808" class="txt">Speed limit, direkte uint16</text><text x="665" y="808" class="txt">30000 = 30.0 km/t</text><text x="1045" y="808" class="ok h2">✓</text>
+<text x="90" y="858" class="mono">C2/C4/C6</text><text x="290" y="858" class="txt">Profilgrenser</text><text x="665" y="858" class="txt">Høyere verdier avvist</text><text x="1045" y="858" class="bad h2">✕</text>
+<text x="90" y="908" class="mono">0x72</text><text x="290" y="908" class="txt">Limiter state</text><text x="665" y="908" class="txt">Readback uendret</text><text x="1045" y="908" class="bad h2">✕</text>
+<text x="90" y="958" class="mono">EE</text><text x="290" y="958" class="txt">Wheel factor</text><text x="665" y="958" class="txt">226 → 225 på readback</text><text x="1045" y="958" class="bad h2">✕</text>
+
+<!-- 4 -->
+<rect x="1210" y="620" rx="22" width="1150" height="400" class="panel"/>
+<rect x="1228" y="638" rx="12" width="580" height="54" class="blue"/><text x="1250" y="676" class="h2">4  XBOT FORCED UPGRADE – HTTP FLOW</text>
+<rect x="1270" y="740" rx="16" width="165" height="165" class="blue"/><text x="1310" y="828" class="h2">XBOT</text>
+<rect x="1950" y="720" rx="18" width="330" height="220" class="panel"/><text x="1990" y="765" class="mono">127.0.0.1:8765</text><text x="1990" y="812" class="mono">/f/MORO42001/</text><text x="2020" y="850" class="mono">Config.xml</text><text x="2020" y="885" class="mono">DK01.bin</text>
+<text x="1510" y="770" class="txt">1. GET Config.xml</text><path d="M1500 790 H1930" class="line"/>
+<text x="1510" y="845" class="txt">2. GET DK01.bin</text><path d="M1500 865 H1930" class="line"/>
+<text x="1508" y="930" class="small">HTTP 200 = XBOT lastet ned filen, ikke at controlleren flashet den.</text>
+
+<!-- 5 -->
+<rect x="40" y="1050" rx="22" width="760" height="400" class="panel"/>
+<rect x="58" y="1068" rx="12" width="610" height="54" class="blue"/><text x="80" y="1106" class="h2">5  FIRMWAREFIL OG VERIFISERING</text>
+<text x="85" y="1170" class="txt">Verifisert V2 Pro LR:</text><text x="85" y="1215" class="mono">DK061007f9.bin</text><text x="85" y="1255" class="mono">28 444 bytes</text><text x="85" y="1295" class="mono">SHA-256:</text><text x="85" y="1330" class="small">856c19b176f9e8d1f73f627e731e4a991282c9fba2a136b14651831b981bff62</text>
+<rect x="85" y="1360" rx="12" width="640" height="60" class="green"/><text x="110" y="1400" class="h2">✓ Sjekk alltid hash + størrelse</text>
+
+<!-- 6 -->
+<rect x="830" y="1050" rx="22" width="760" height="400" class="panel"/>
+<rect x="848" y="1068" rx="12" width="665" height="54" class="blue"/><text x="870" y="1106" class="h2">6  OPPDATERINGSPROSESS I CONTROLLEREN</text>
+<text x="885" y="1180" class="txt">enter update mode</text><path d="M1110 1170 H1250" class="line"/><text x="1270" y="1180" class="txt">cmd 7 metadata</text>
+<text x="885" y="1250" class="txt">cmd 8 chunks</text><path d="M1080 1240 H1250" class="line"/><text x="1270" y="1250" class="txt">ACK / retry</text>
+<text x="885" y="1320" class="txt">cmd 9 ending metadata</text><path d="M1160 1310 H1290" class="line"/><text x="1310" y="1320" class="txt">cmd 10 finish</text>
+<rect x="870" y="1360" rx="12" width="675" height="60" class="amber"/><text x="895" y="1398" class="small">ACK-state-machine er delvis reverse-engineered. Controller-side bevis kreves.</text>
+
+<!-- 7 -->
+<rect x="1620" y="1050" rx="22" width="740" height="400" class="panel"/>
+<rect x="1638" y="1068" rx="12" width="610" height="54" class="blue"/><text x="1660" y="1106" class="h2">7  VERKTØY – TRE ENKLE KOMMANDOER</text>
+<rect x="1660" y="1160" rx="14" width="650" height="70" class="green"/><text x="1690" y="1205" class="h2">run</text><text x="1810" y="1205" class="txt">autodeteksjon, probe/current, capture-guide</text>
+<rect x="1660" y="1250" rx="14" width="650" height="70" class="blue"/><text x="1690" y="1295" class="h2">status</text><text x="1840" y="1295" class="txt">profil, server, logger, capture</text>
+<rect x="1660" y="1340" rx="14" width="650" height="70" class="red"/><text x="1690" y="1385" class="h2">restore</text><text x="1855" y="1385" class="txt">stopp + tilbake til original</text>
+
+<rect x="40" y="1490" rx="14" width="2320" height="75" class="red"/><text x="72" y="1538" class="h2">ADVARSEL: Feil firmware kan bricke controlleren. Bruk kun verifisert image for nøyaktig controller-ID.</text>
+</svg>
